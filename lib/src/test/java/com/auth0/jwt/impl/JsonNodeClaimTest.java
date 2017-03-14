@@ -7,15 +7,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.MissingNode;
 import com.fasterxml.jackson.databind.node.NullNode;
+import org.hamcrest.collection.IsMapContaining;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
-import java.util.Map;
+import java.util.*;
 
 import static com.auth0.jwt.impl.JWTParser.getDefaultObjectMapper;
 import static com.auth0.jwt.impl.JsonNodeClaim.claimFromNode;
@@ -204,6 +202,36 @@ public class JsonNodeClaimTest {
 
         exception.expect(JWTDecodeException.class);
         claim.asList(UserPojo.class);
+    }
+
+    @Test
+    public void shouldGetMapValue() throws Exception {
+        Map<String, Object> map = new HashMap<>();
+        map.put("text", "extraValue");
+        map.put("number", 12);
+        map.put("boolean", true);
+        map.put("object", Collections.singletonMap("something", "else"));
+
+        JsonNode value = mapper.valueToTree(map);
+        Claim claim = claimFromNode(value);
+
+        assertThat(claim, is(notNullValue()));
+        Map<String, Object> backMap = claim.asMap();
+        assertThat(backMap, is(notNullValue()));
+        assertThat(backMap, hasEntry("text", (Object) "extraValue"));
+        assertThat(backMap, hasEntry("number", (Object) 12));
+        assertThat(backMap, hasEntry("boolean", (Object) true));
+        assertThat(backMap, hasKey("object"));
+        assertThat((Map<String, Object>) backMap.get("object"), IsMapContaining.hasEntry("something", (Object) "else"));
+    }
+
+    @Test
+    public void shouldThrowIfMapClassMismatch() throws Exception {
+        JsonNode value = mapper.valueToTree("text node");
+        Claim claim = claimFromNode(value);
+
+        exception.expect(JWTDecodeException.class);
+        claim.asMap();
     }
 
     @Test
